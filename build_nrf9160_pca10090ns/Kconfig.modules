@@ -1,0 +1,8 @@
+osource "C:/Programiranje/nrf91/ncs/nrf/Kconfig.nrf"
+
+osource "C:/Programiranje/nrf91/ncs/mcuboot/zephyr/Kconfig"
+
+osource "C:/Programiranje/nrf91/ncs/modules/lib/tinycbor/Kconfig.tinycbor"
+
+osource "C:/Programiranje/nrf91/ncs/nrfxlib/Kconfig.nrfxlib"
+

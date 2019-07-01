@@ -1,0 +1,4 @@
+"nrf":"C:\Programiranje\nrf91\ncs\nrf"
+"mcuboot":"C:\Programiranje\nrf91\ncs\mcuboot\zephyr"
+"tinycbor":"C:\Programiranje\nrf91\ncs\modules\lib\tinycbor"
+"nrfxlib":"C:\Programiranje\nrf91\ncs\nrfxlib"

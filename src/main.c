@@ -18,7 +18,10 @@
 #include <lte_lc.h>
 #include <modem_info.h>
 #endif
+#include <i2c.h>
 
+
+struct device *i2c_lux;
 
 #include "orientation_detector.h"
 
@@ -478,6 +481,23 @@ static void env_data_send(void)
 		return;
 	}
 
+        /* VEML6300 -- branje iz registrov ALSja in pretvorba v LUXe glede na zaèetne nastavitve pri inicializaciji */
+        unsigned char read_data[2];
+        uint16_t ALS_value;
+        float ALS_f_value;
+                
+        if (i2c_burst_read(i2c_lux, 0x48, 0x04, read_data, 2) != 0) {
+                printk("Error on i2c_read()\n");
+        } else {
+                //printk("no error\r\n");
+        }
+
+        ALS_value = read_data[1];
+        ALS_value = (ALS_value <<8) | read_data[0];	
+
+        ALS_f_value = (float)ALS_value * 0.0576;
+        /* VEML6300 */
+
 	for (int i = 0; i < num_sensors; i++) {
 		err = sensor_sample_fetch_chan(env_sensors[i]->dev,
 			env_sensors[i]->channel);
@@ -494,16 +514,27 @@ static void env_data_send(void)
 				env_sensors[i]->dev_name, err);
 			return;
 		}
+                
+                if(i <= 1)
+                {
+                    len = snprintf(buf, sizeof(buf), "%.1f",
+                            sensor_value_to_double(&data[i]));
+                }
 
-		len = snprintf(buf, sizeof(buf), "%.1f",
-			sensor_value_to_double(&data[i]));
+                /* VEML6300 -- kreiranje stringov iz float vrednosti ASL namesto air pressure */
+                else if (i == 2)
+                {
+                    len = snprintf(buf, sizeof(buf), "%.1f", ALS_f_value);
+                }
+                /* VEML6300 */
+
 		env_cloud_data[i].data.ptr = buf;
 		env_cloud_data[i].data.len = len;
 		env_cloud_data[i].tag += 1;
 
 		if (env_cloud_data[i].tag == 0) {
 			env_cloud_data[i].tag = 0x1;
-		}
+		}              
 
 		sensor_data_send(&env_cloud_data[i]);
 	}
@@ -1080,6 +1111,19 @@ static void sensors_init(void)
 		button_sensor_init();
 	}
 
+        /* VEML6300 -- inizializacija ALS */
+        unsigned char write_data[3];
+        write_data[0] = 0x00; // register
+        write_data[1] = 0x00; // LSB	
+        write_data[2] = 0x00; // MSB
+
+        if (i2c_burst_write(i2c_lux, 0x48, 0x00, write_data, 2) != 0) {
+                printk("Error on i2c_write()\n");
+        } else {
+                printk("VEML6030 INIT OK\r\n");
+        }
+       /* VEML6300 */
+
 	gps_cloud_data.type = NRF_CLOUD_SENSOR_GPS;
 	gps_cloud_data.tag = 0x1;
 	gps_cloud_data.data.ptr = nmea_data.str;
@@ -1118,15 +1162,32 @@ static void buttons_leds_init(void)
 #endif
 }
 
+/* VEML6300 -- inizializacija I2C */
+/* uporabljata se pina 30 in 31 - za veè info glej "nrf9160_pca10090ns.dts_compiled", vrstica 221 */
+
+uint8_t init_i2c_test(){
+    i2c_lux = device_get_binding("I2C_2");
+    if (!i2c_lux) {
+		printk("I2C_2 error\n");
+        return -1;
+	} else  {
+                i2c_configure(i2c_lux, I2C_SPEED_SET(I2C_SPEED_STANDARD));
+                 printk("I2C_2 Init OK\n");
+        return 0;
+    }
+}
+/* VEML6300  */
+
 void main(void)
 {
 	printk("Application started\n");
 
 	buttons_leds_init();
+        init_i2c_test();
 	work_init();
 	cloud_init();
 	modem_configure();
-	cloud_connect(NULL);
+	cloud_connect(NULL);       
 
 	while (true) {
 		nrf_cloud_process();
